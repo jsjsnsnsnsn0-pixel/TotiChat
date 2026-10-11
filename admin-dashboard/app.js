@@ -43,6 +43,7 @@ const names=Object.fromEntries(nav.map(x=>[x[0],x[1]]));
 let session=null,rights=null,current='overview',loading=false,banners=[],bannerTotal=0,bannerOffset=0;
 let editingId=null,previewBlob=null,previewUrl=null,toastTimer=null,epoch=0,writeBusy=false,detailOffset=0,directoryOffset=0,directoryQuery='';
 let catalogTable='gift_catalog',catalogOffset=0,catalogRows=[],catalogTotal=0;
+let activeModerationRoom=null,roomModerationBusy=false;
 const localDay=d=>new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10);
 let reportRange={from:localDay(new Date(Date.now()-29*86400000)),to:localDay(new Date()),status:''};
 function setError(text){$('#login-error').textContent=String(text||'').slice(0,320);}
@@ -609,18 +610,73 @@ async function directoryPage(kind){
     result.rows.map(x=>[x.display_name,x.id,new Date(x.created_at).toLocaleDateString('ar-IQ')])):
    empty('لا يوجد حساب مطابق','قاعدة البيانات لم تُرجع مستخدمين لهذا البحث.');
  }else{
-  html+=result.rows.length?table(['الغرفة','المالك','الخصوصية','سجلات العضوية','تاريخ الإنشاء'],
-   result.rows.map(x=>[x.title,x.owner_id,x.is_private?'خاصة':'عامة',
-    fmt(x.member_records),new Date(x.created_at).toLocaleDateString('ar-IQ')])):
+  html+=result.rows.length?
+   '<div class="table-wrap"><table class="data-table"><thead><tr><th>الغرفة</th><th>المالك</th><th>سجلات العضوية</th><th>الإشراف</th></tr></thead><tbody>'+
+   result.rows.map(x=>'<tr><td><strong>'+safe(x.title)+'</strong><small class="mono">'+safe(x.id)+'</small></td>'+
+   '<td class="mono">'+safe(x.owner_id)+'</td><td>'+fmt(x.member_records)+'</td>'+
+   '<td><button class="btn btn-ghost" data-action="room-review" data-id="'+safe(x.id)+'">مراجعة الغرفة</button></td></tr>').join('')+
+   '</tbody></table></div>':
    empty('لا توجد غرف مطابقة','لا نعرض غرفاً أو مستخدمين وهميين.');
  }
  html+='<div class="control-strip" style="margin-top:16px"><div>'+
   '<button class="btn btn-secondary" data-action="dir-prev" '+(directoryOffset===0?'disabled':'')+'>السابق</button> '+
   '<button class="btn btn-secondary" data-action="dir-next" '+(directoryOffset+30>=result.total?'disabled':'')+'>التالي</button></div>'+
   '<span class="muted">صفحة '+(1+Math.floor(directoryOffset/30))+'</span></div>'+
-  '<div class="admin-alert">هذه قائمة إدارية للقراءة فقط. إجراءات الحظر والطرد والتوثيق تُفعّل بعد تدقيق الصلاحيات والتسجيل الأمني.</div></section>';
+  '<div class="admin-alert">'+(kind==='rooms'?
+  'الحظر وفك الحظر هنا يخص الغرفة المحددة فقط ويحتاج سبباً من 10 أحرف على الأقل. لا يُحظر الحساب من التطبيق بالكامل.':
+  'هذه قائمة مستخدمين للقراءة فقط. حظر الحسابات العام غير مفعّل بدون سياسة إضافية.')+
+  '</div></section>'+
+  (kind==='rooms'?'<div id="room-admin-details" aria-live="polite"></div>':'');
  $('#page-body').innerHTML=html;
 }
+const roomIdOk=value=>/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(value||''));
+async function reviewRoom(roomId){
+ if(!roomIdOk(roomId)||current!=='rooms'||!isChief())throw Error('الغرفة غير صالحة أو الإذن غير متوفر');
+ const stamp=epoch,account=session?.user?.id;activeModerationRoom=roomId;
+ const out=$('#room-admin-details');
+ if(!out)throw Error('نافذة تفاصيل الغرفة غير متاحة');
+ out.innerHTML=loadingHtml();
+ const data=await rpc('phase6_admin_room_state',{p_room_id:roomId});
+ if(stamp!==epoch||account!==session?.user?.id||current!=='rooms'||activeModerationRoom!==roomId)return;
+ if(data?.readOnly!==true||data.roomId!==roomId||!Array.isArray(data.members)||!Array.isArray(data.banned))
+  throw Error('فشل التحقق من بيانات الإشراف');
+ const forms=(arr,action)=>{
+  if(!arr.length)return empty('لا توجد سجلات','لا يوجد أعضاء أو حظر ضمن هذا القسم.');
+  return arr.map(x=>'<article class="room-control-row"><div><strong class="mono">'+safe(x.user_id)+'</strong>'+
+   (action==='unban'?'<small>السبب السابق: '+safe(x.reason)+'</small>':'<small>مقعد: '+safe(x.seat_no??'بدون مقعد')+'</small>')+
+   '</div><form class="admin-form-row room-control-form" data-room-action="'+action+'" data-target="'+safe(x.user_id)+'">'+
+   '<label>سبب '+(action==='ban'?'الحظر':'فك الحظر')+
+   '<input name="reason" type="text" minlength="10" maxlength="300" placeholder="وثّق السبب بوضوح" required></label>'+
+   '<button class="btn '+(action==='ban'?'btn-danger':'btn-secondary')+'" type="submit">'+
+   (action==='ban'?'حظر من الغرفة':'فك الحظر')+'</button></form></article>').join('');
+ };
+ out.innerHTML='<section class="surface pad"><div class="surface-title"><h2>إشراف الغرفة المحددة</h2><p class="mono">'+safe(roomId)+'</p></div>'+
+  '<div class="two-col"><div><h3>المشاركون</h3>'+forms(data.members.filter(x=>x.user_id!==data.roomOwnerId),'ban')+
+  '</div><div><h3>المحظورون</h3>'+forms(data.banned,'unban')+'</div></div>'+
+  '<div class="admin-alert">جميع الإجراءات تخص هذه الغرفة فقط، وتُحفظ في سجل التدقيق. لا يتم إيقاف حساب المستخدم على مستوى التطبيق.</div></section>';
+}
+async function submitRoomAction(form){
+ if(current!=='rooms'||!isChief()||roomModerationBusy)return;
+ const room=activeModerationRoom,target=form.dataset.target,action=form.dataset.roomAction;
+ const reason=String(new FormData(form).get('reason')||'').trim();
+ if(!roomIdOk(room)||!roomIdOk(target)||!['ban','unban'].includes(action)||reason.length<10||reason.length>300)
+  throw Error('حدّد غرفة ومستخدماً وسبباً موثقاً صحيحاً');
+ if(!confirm('هل تؤكد '+(action==='ban'?'حظر المستخدم داخل هذه الغرفة فقط؟':'فك حظر المستخدم من هذه الغرفة فقط؟')))return;
+ roomModerationBusy=true;const stamp=epoch,account=session?.user?.id;
+ try{
+  const result=await rpc('phase6_admin_room_action',{
+   p_room_id:room,p_target:target,p_action:action,p_reason:reason,
+   p_request_id:crypto.randomUUID()});
+  if(!result?.success||result.scope!=='room_only'||result.roomId!==room)
+   throw Error('لم يؤكد الخادم العملية الآمنة');
+  if(stamp===epoch&&account===session?.user?.id&&current==='rooms'){
+   toast('تم تسجيل قرار الإشراف على هذه الغرفة');
+   await reviewRoom(room);
+  }
+ }catch(e){if(stamp===epoch)toast('تعذّر الإشراف: '+e.message,true);}
+ finally{roomModerationBusy=false;}
+}
+
 async function usersPage(){await directoryPage('users');}
 async function roomsPage(){await directoryPage('rooms');}
 async function teamPage(){return window.TotiAdminManagement.team();}
@@ -654,6 +710,7 @@ document.addEventListener('click',async event=>{
   if(action==='catalog-toggle')await catalogToggle(Number(button.dataset.index));
   if(action==='dir-next'){directoryOffset+=30;await directoryPage(current==='users'?'users':'rooms');}
   if(action==='dir-prev'){directoryOffset=Math.max(0,directoryOffset-30);await directoryPage(current==='users'?'users':'rooms');}
+  if(action==='room-review')await reviewRoom(id);
  }catch(e){toast(e.message,true);}
 });
 $('#login-form').addEventListener('submit',async e=>{
@@ -701,6 +758,9 @@ $('#page-body').addEventListener('submit',async e=>{
   e.preventDefault();const v=new FormData(e.target);
   reportRange={from:String(v.get('from')||''),to:String(v.get('to')||''),status:String(v.get('status')||'')};
   detailOffset=0;void reportsPage().catch(err=>toast(err.message,true));return;
+ }
+ if(e.target.matches('.room-control-form')){
+  e.preventDefault();void submitRoomAction(e.target).catch(err=>toast(err.message,true));return;
  }
  if(e.target.id==='directory-search-form'){
   e.preventDefault();directoryQuery=$('#directory-search').value.trim();directoryOffset=0;
