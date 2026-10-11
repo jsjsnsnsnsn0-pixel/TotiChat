@@ -42,6 +42,7 @@ const nav=[
 const names=Object.fromEntries(nav.map(x=>[x[0],x[1]]));
 let session=null,rights=null,current='overview',loading=false,banners=[],bannerTotal=0,bannerOffset=0;
 let editingId=null,previewBlob=null,previewUrl=null,toastTimer=null,epoch=0,writeBusy=false,detailOffset=0,directoryOffset=0,directoryQuery='';
+let catalogTable='gift_catalog',catalogOffset=0,catalogRows=[],catalogTotal=0;
 const localDay=d=>new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10);
 let reportRange={from:localDay(new Date(Date.now()-29*86400000)),to:localDay(new Date()),status:''};
 function setError(text){$('#login-error').textContent=String(text||'').slice(0,320);}
@@ -514,17 +515,74 @@ async function simpleModule(route,rpcName,body,warning){
 async function hostsPage(){return window.TotiAdminManagement.agencies('host');}
 async function rechargePage(){return window.TotiAdminManagement.agencies('recharge');}
 async function supportPage(){return window.TotiAdminManagement.support();}
+const catalogSpecs=[
+ ['gift_catalog','كتالوج الهدايا'],
+ ['gift_categories','تصنيفات الهدايا'],
+ ['store_catalog','عناصر المتجر'],
+ ['cp_types','أنواع CP'],
+ ['recharge_packages','باقات الشحن'],
+ ['recharge_reward_tiers','مكافآت الشحن']
+];
+const toggleableCatalogs=new Set(['gift_catalog','gift_categories','store_catalog','cp_types']);
 async function catalogPage(){
- const key='gift_catalog';
- const data=await rpc('phase3_catalog_list',{p_table:key,p_offset:0,p_limit:50});
- if(current!=='catalog')return;
- if(!Array.isArray(data.rows))throw Error('بيانات كتالوج غير صالحة');
- $('#page-body').innerHTML='<div class="surface pad"><div class="surface-title"><h2>كتالوج الهدايا الحقيقي</h2><p>'+fmt(data.total)+' عنصر · عرض أول 50</p></div>'+
- (data.rows.length?table(['المعرّف','الاسم','السعر','الحالة'],
- data.rows.map(x=>[x.id,x.name,x.price,x.is_active?'فعّال':'متوقف'])):
- empty('الكتالوج فارغ حالياً','لا يتم اختراع هدايا للعرض.'))+
- '<div class="admin-alert">تعديل الكتالوجات الحساسة سيتطلب تدقيق نماذج الإدخال والصلاحيات قبل تفعيل أدوات الكتابة في الموقع.</div></div>';
+ if(!canCatalogs())throw Error('لا تملك إذن قراءة الكتالوجات');
+ const stamp=epoch,route=current,tableKey=catalogTable,offset=catalogOffset;
+ if(!catalogSpecs.some(x=>x[0]===tableKey))throw Error('كتالوج غير مصرح');
+ const data=await rpc('phase3_catalog_list',{p_table:tableKey,p_offset:offset,p_limit:30});
+ if(stamp!==epoch||route!==current||tableKey!==catalogTable||offset!==catalogOffset)return;
+ if(!Array.isArray(data?.rows)||!Number.isSafeInteger(data.total))throw Error('استجابة الكتالوج غير صالحة');
+ catalogRows=data.rows;catalogTotal=data.total;
+ const tabs='<div class="catalog-tabs">'+catalogSpecs.map(([key,label])=>
+  '<button type="button" class="catalog-tab'+(key===tableKey?' selected':'')+
+  '" data-action="catalog-view" data-table="'+key+'">'+safe(label)+'</button>').join('')+'</div>';
+ const cells=data.rows.map((row,index)=>{
+  const label=row.name??row.label??row.id;
+  const amount=row.price??row.price_usd??row.threshold_usd??row.gold_amount;
+  const statusKey=typeof row.is_active==='boolean'?'is_active':
+    typeof row.enabled==='boolean'?'enabled':null;
+  const isOn=statusKey?row[statusKey]:null;
+  const statusText=statusKey?(isOn?'فعّال':'متوقف'):'لا يوجد مفتاح تشغيل';
+  const controls=statusKey&&toggleableCatalogs.has(tableKey)?
+    '<button type="button" class="text-button" data-action="catalog-toggle" data-index="'+index+'">'+
+    (isOn?'إيقاف':'تفعيل')+'</button>':'<span class="muted">قراءة فقط</span>';
+  return '<tr><td><strong>'+safe(label)+'</strong><small class="mono">'+safe(row.id)+'</small></td>'+
+   '<td>'+safe(amount??'—')+'</td><td>'+safe(statusText)+'</td><td>'+controls+'</td></tr>';
+ }).join('');
+ const t='<div class="table-wrap"><table class="data-table"><thead><tr><th>العنصر</th><th>القيمة المسجلة</th><th>الحالة</th><th>التحكم</th></tr></thead>'+
+  '<tbody>'+cells+'</tbody></table></div>';
+ $('#page-body').innerHTML='<section class="surface pad"><div class="surface-title"><h2>كتالوغات TotiChat الحقيقية</h2>'+
+  '<p>'+fmt(data.total)+' عنصر في هذا القسم</p></div>'+
+  tabs+
+  (data.rows.length?t:empty('الكتالوج فارغ في Staging','لم نضف هدايا أو باقات أو أسعار وهمية.'))+
+  '<div class="control-strip" style="margin-top:15px"><span class="muted">صفحة '+(1+Math.floor(offset/30))+'</span>'+
+  '<div><button class="btn btn-secondary" data-action="catalog-prev" '+(offset===0?'disabled':'')+'>السابق</button> '+
+  '<button class="btn btn-secondary" data-action="catalog-next" '+(offset+30>=data.total?'disabled':'')+'>التالي</button></div></div>'+
+  '<div class="admin-alert">يسمح هذا القسم بالتفعيل والإيقاف فقط لبعض العناصر بعد تأكيد صريح. الأسعار والباقات المالية وقواعد المكافآت لا تتغير من هذه الشاشة قبل اعتمادها.</div></section>';
 }
+async function catalogToggle(index){
+ if(!canCatalogs()||writeBusy||current!=='catalog')return;
+ if(!Number.isSafeInteger(index)||index<0||index>=catalogRows.length)return;
+ if(!toggleableCatalogs.has(catalogTable))throw Error('التعديل المالي غير متاح من هنا');
+ const item=catalogRows[index];
+ const field=typeof item?.is_active==='boolean'?'is_active':
+  typeof item?.enabled==='boolean'?'enabled':null;
+ if(!field||typeof item.id!=='string'||item.id.length>100)throw Error('عنصر كتالوج غير صالح');
+ const next=!item[field],oldTable=catalogTable,stamp=epoch,account=session?.user?.id;
+ if(!confirm('هل تريد '+(next?'تفعيل':'إيقاف')+' '+String(item.name??item.label??item.id)+' في بيئة Staging؟'))return;
+ writeBusy=true;
+ try{
+  const result=await rpc('phase3_catalog_write',{
+   p_table:oldTable,p_action:'update',p_id:item.id,p_record:{[field]:next},
+   p_request_id:crypto.randomUUID()});
+  if(!result||result[field]!==next)throw Error('الخادم لم يؤكد نتيجة التغيير');
+  if(stamp===epoch&&account===session?.user?.id&&current==='catalog'&&catalogTable===oldTable){
+   toast('تم '+(next?'تفعيل':'إيقاف')+' العنصر بعد التحقق من الخادم');
+   await catalogPage();
+  }
+ }catch(e){if(stamp===epoch)toast('تعذر تغيير العنصر: '+e.message,true);}
+ finally{writeBusy=false;}
+}
+
 async function vipPage(){return window.TotiAdminManagement.vip();}
 async function medalsPage(){return window.TotiAdminManagement.medals();}
 function notConnected(name,needed){
@@ -587,6 +645,13 @@ document.addEventListener('click',async event=>{
   if(action==='report-prev'){detailOffset=Math.max(0,detailOffset-50);await reportsPage();}
   if(action==='load-issues')await fetchIssues();
   if(action==='export-report')await exportReport();
+  if(action==='catalog-view'){
+   const chosen=button.dataset.table;
+   if(catalogSpecs.some(x=>x[0]===chosen)){catalogTable=chosen;catalogOffset=0;await catalogPage();}
+  }
+  if(action==='catalog-prev'){catalogOffset=Math.max(0,catalogOffset-30);await catalogPage();}
+  if(action==='catalog-next'){catalogOffset+=30;await catalogPage();}
+  if(action==='catalog-toggle')await catalogToggle(Number(button.dataset.index));
   if(action==='dir-next'){directoryOffset+=30;await directoryPage(current==='users'?'users':'rooms');}
   if(action==='dir-prev'){directoryOffset=Math.max(0,directoryOffset-30);await directoryPage(current==='users'?'users':'rooms');}
  }catch(e){toast(e.message,true);}
