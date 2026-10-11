@@ -1,0 +1,57 @@
+name: TotiChat Independent Admin Export
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/totichat-admin-staging-20261011
+    paths:
+      - "admin-dashboard/**"
+      - ".github/workflows/admin-standalone-export.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  package-independent-site:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout isolated admin development branch
+        uses: actions/checkout@v4
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Verify and build dashboard only
+        working-directory: admin-dashboard
+        run: |
+          node --check app.js
+          node --check management.js
+          node --check build.mjs
+          npm run build
+          node --test tests/admin-staging.test.mjs
+      - name: Create standalone deployable archive
+        shell: bash
+        run: |
+          mkdir -p /tmp/totichat-admin-independent
+          cp admin-dashboard/index.html admin-dashboard/app.js admin-dashboard/management.js /tmp/totichat-admin-independent/
+          cp admin-dashboard/styles.css admin-dashboard/management.css /tmp/totichat-admin-independent/
+          cp admin-dashboard/package.json admin-dashboard/build.mjs admin-dashboard/vercel.json /tmp/totichat-admin-independent/
+          cp admin-dashboard/README.md admin-dashboard/DEPLOYMENT_HANDOFF.md /tmp/totichat-admin-independent/
+          cp -a admin-dashboard/assets /tmp/totichat-admin-independent/
+          cp -a admin-dashboard/tests /tmp/totichat-admin-independent/
+          cat > /tmp/totichat-admin-independent/INDEPENDENT_REPOSITORY.txt <<'EOF'
+          TotiChat Admin Dashboard is a completely separate, static web project.
+          This archive includes ONLY dashboard code and assets, not the TotiChat mobile app.
+          Once a NEW GitHub repository is created, upload these files to its repository root.
+          In Vercel, select the NEW repository, Framework Other, npm run build, Output Directory dist.
+          Staging Supabase is the only connected backend; no production database use.
+          EOF
+          cd /tmp
+          zip -qr /tmp/TotiChat-Admin-Independent.zip totichat-admin-independent
+      - name: Upload standalone website artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TotiChat-Admin-Independent-Source
+          path: /tmp/TotiChat-Admin-Independent.zip
+          retention-days: 30
+          if-no-files-found: error
