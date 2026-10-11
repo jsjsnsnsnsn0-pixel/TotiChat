@@ -11,3 +11,10 @@
 @media(max-width:960px){.app-shell{display:block}.sidebar{position:fixed;right:0;top:0;width:265px;transform:translateX(104%);transition:transform .24s}.app-shell.nav-open .sidebar{transform:translateX(0)}.app-shell.nav-open .sidebar-backdrop{display:block;position:fixed;inset:0;background:#102d2266;z-index:40}.menu-toggle{display:grid}.topbar{height:70px}.main-content{padding-top:24px}.auth-screen{grid-template-columns:1fr}.login-art{display:none}}
 @media(max-width:620px){.topbar{padding:0 15px}.topbar .env-pill,.topbar .account-mini>span,.bread-sep,.breadcrumb{display:none}.account-mini{padding-right:0;border:0}.heading-row{align-items:start}.heading-row h1{font-size:21px}.heading-actions .today{display:none}.metric-grid,.two-col,.quick-grid{grid-template-columns:1fr 1fr;gap:10px}.metric-card{min-height:131px;padding:13px 14px}.metric-card strong{font-size:23px}.metric-card label{font-size:10px}.surface.pad{padding:16px}.quick-link{padding:12px;gap:8px;min-height:80px}.quick-link .quick-ico{width:34px;height:34px;font-size:16px}.banner-intro{grid-template-columns:1fr}.banner-graphic{display:none}.two-col{grid-template-columns:1fr}.form-field{grid-column:1/-1}.modal form{padding:18px}.modal-grid{gap:12px}.login-panel{width:calc(100% - 46px);padding:34px 0}.login-panel h1{font-size:31px}.login-brand{margin-bottom:36px}.app-footer{padding:14px;font-size:9px}.table-wrap{margin:0 -6px}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
+
+/* Catalog manager: compact, touch-friendly, readable on phones and tablets. */
+.catalog-tabs{display:flex;gap:8px;overflow-x:auto;padding:0 0 16px;scrollbar-width:thin;scroll-snap-type:x proximity}
+.catalog-tab{white-space:nowrap;scroll-snap-align:start;border:1px solid #e1ebe4;color:#5f7d69;background:#f8fbf8;padding:9px 14px;border-radius:12px;font-size:12px;font-weight:800}
+.catalog-tab:hover{border-color:#bad5c4;color:#1b6647}
+.catalog-tab.selected{background:#e6f4eb;border-color:#abd0b8;color:#176242}
+.catalog-tab:focus-visible{outline:3px solid #9ed4b6;outline-offset:2px}
