@@ -36,16 +36,41 @@ jobs:
           cp admin-dashboard/index.html admin-dashboard/app.js admin-dashboard/management.js /tmp/totichat-admin-independent/
           cp admin-dashboard/styles.css admin-dashboard/management.css /tmp/totichat-admin-independent/
           cp admin-dashboard/package.json admin-dashboard/build.mjs admin-dashboard/vercel.json /tmp/totichat-admin-independent/
-          cp admin-dashboard/README.md admin-dashboard/DEPLOYMENT_HANDOFF.md /tmp/totichat-admin-independent/
-          cp -a admin-dashboard/assets /tmp/totichat-admin-independent/
-          cp -a admin-dashboard/tests /tmp/totichat-admin-independent/
-          cat > /tmp/totichat-admin-independent/INDEPENDENT_REPOSITORY.txt <<'EOF'
-          TotiChat Admin Dashboard is a completely separate, static web project.
-          This archive includes ONLY dashboard code and assets, not the TotiChat mobile app.
-          Once a NEW GitHub repository is created, upload these files to its repository root.
-          In Vercel, select the NEW repository, Framework Other, npm run build, Output Directory dist.
-          Staging Supabase is the only connected backend; no production database use.
+          cp -a admin-dashboard/assets admin-dashboard/tests admin-dashboard/staging-migrations /tmp/totichat-admin-independent/
+          cat > /tmp/totichat-admin-independent/README.md <<'EOF'
+          # TotiChat Admin — independent web project
+
+          This repository contains ONLY the standalone TotiChat administration website,
+          not the Android client or consumer app. It may be deployed or updated separately.
+
+          ## Commands
+          - `npm run build`: prepare static site in `dist/`.
+          - `node --test tests/admin-staging.test.mjs`: run the contract tests after building.
+
+          ## Vercel
+          Create a new Vercel project linked to the separate Admin GitHub repository.
+          Framework Other, Root Directory empty, Build Command `npm run build`,
+          Output Directory `dist`. Do not use the old app's Vercel project.
+
+          ## Security
+          All API URLs point to Supabase STAGING, not production.
+          Owner identity `xxjjh20@gmail.com` remains bound on the server.
+          Server-side RPCs enforce permissions. Do not add a service-role key to the browser.
+          Configure the exact new website HTTPS redirect in Supabase Auth to enable OAuth.
+          The SQL files in `staging-migrations/` are historical reference ONLY.
+          Never apply them blindly to production or repeat them on an already-migrated staging DB.
+
+          ## Acceptance
+          Static build/contract QA is not full login, banner-upload or financial E2E acceptance.
+          Owner must verify with authorized Staging accounts before production cutover.
           EOF
+          cat > /tmp/totichat-admin-independent/.gitignore <<'EOF'
+          dist/
+          node_modules/
+          .vercel/
+          .env*
+          EOF
+          (cd /tmp/totichat-admin-independent && npm run build && node --test tests/admin-staging.test.mjs)
           cd /tmp
           zip -qr /tmp/TotiChat-Admin-Independent.zip totichat-admin-independent
       - name: Upload standalone website artifact
