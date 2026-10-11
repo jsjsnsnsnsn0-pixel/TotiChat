@@ -68,7 +68,7 @@ test('moderation is room-only, server-authorized and requires explicit documente
  assert.match(migration,/p_target=room_owner or p_target=actor_id/);
  assert.match(migration,/a\.owner_id=p_target or a\.main_partner_id=p_target/);
  assert.match(migration,/scope','room_only'/);
- assert.match(migration,/revoke all on function public\.phase6_admin_room_action/);
+ assert.match(migration,/revoke all on function public\.phase6_admin_room_state\(uuid\),\s*public\.phase6_admin_room_action/);
  assert.match(actorFix,/current_actor/);
  assert.doesNotMatch(actorFix,/r\.actor_id=actor_id/);
  assert.match(app,/phase6_admin_room_state/);
