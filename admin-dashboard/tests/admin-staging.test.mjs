@@ -57,3 +57,23 @@ test('Vercel security headers and staging-only browser network policy exist',()=
  assert.equal(getKey('X-Frame-Options'),'DENY');
  assert.match(getKey('X-Robots-Tag'),/noindex/);
 });
+
+test('moderation is room-only, server-authorized and requires explicit documented approval',()=>{
+ const migration=get('staging-migrations/20261011_admin_room_safety.sql');
+ const actorFix=get('staging-migrations/20261011_admin_room_actor_fix.sql');
+ assert.match(migration,/phase3\.admin_room_authorized\(\)/);
+ assert.match(migration,/a\.main_partner_id=actor_id/);
+ assert.match(migration,/p_action not in\('ban','unban'\)/);
+ assert.match(migration,/char_length\(reason_text\) not between 10 and 300/);
+ assert.match(migration,/p_target=room_owner or p_target=actor_id/);
+ assert.match(migration,/a\.owner_id=p_target or a\.main_partner_id=p_target/);
+ assert.match(migration,/scope','room_only'/);
+ assert.match(migration,/revoke all on function public\.phase6_admin_room_action/);
+ assert.match(actorFix,/current_actor/);
+ assert.doesNotMatch(actorFix,/r\.actor_id=actor_id/);
+ assert.match(app,/phase6_admin_room_state/);
+ assert.match(app,/phase6_admin_room_action/);
+ assert.match(app,/result\.scope!=='room_only'/);
+ assert.match(app,/confirm\('هل تؤكد '/);
+ assert.doesNotMatch(app,/phase6_admin_global_ban|deleteUser/);
+});
