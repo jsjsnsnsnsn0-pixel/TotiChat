@@ -135,7 +135,8 @@ function toBase64Url(bytes){
  let raw='';bytes.forEach(b=>raw+=String.fromCharCode(b));
  return btoa(raw).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
 }
-async function oauthStart(){
+async function oauthStart(provider){
+ if(!['github','google'].includes(provider))throw Error('مزود دخول غير مسموح');
  const bytes=crypto.getRandomValues(new Uint8Array(48));
  const verifier=toBase64Url(bytes);
  sessionStorage.setItem('tc_dashboard_pkce',verifier);
@@ -143,7 +144,7 @@ async function oauthStart(){
  const challenge=toBase64Url(new Uint8Array(digest));
  const redirect=location.origin+location.pathname;
  const url=new URL(API+'/auth/v1/authorize');
- url.searchParams.set('provider','github');
+ url.searchParams.set('provider',provider);
  url.searchParams.set('redirect_to',redirect);
  url.searchParams.set('code_challenge',challenge);
  url.searchParams.set('code_challenge_method','s256');
@@ -723,7 +724,8 @@ $('#login-form').addEventListener('submit',async e=>{
  }catch(error){showGuest();setError(error.message);}
  finally{button.disabled=false;}
 });
-$('#github-login').addEventListener('click',()=>oauthStart().catch(e=>setError(e.message)));
+$('#github-login').addEventListener('click',()=>oauthStart('github').catch(e=>setError(e.message)));
+$('#google-login').addEventListener('click',()=>oauthStart('google').catch(e=>setError(e.message)));
 $('#logout').addEventListener('click',()=>void signOut());
 $('#refresh-btn').addEventListener('click',()=>{if(signed())navigate(current);});
 $('#menu-toggle').addEventListener('click',()=>$('#dashboard').classList.toggle('nav-open'));
