@@ -127,7 +127,7 @@ async function vip(){
 async function medals(){
  ensure();const token=++loadSerial,stamp=revision(),account=identity(),r=await api('phase5_medal_catalog',{});
  if(token!==loadSerial||stamp!==revision()||account!==identity()||!startPage('medals'))return;
- const rows=Array.isArray(r)?r:Array.isArray(r?.medals)?r.medals:Array.isArray(r?.rows)?r.rows:[];
+ const rows=Array.isArray(r?.items)?r.items:Array.isArray(r?.medals)?r.medals:Array.isArray(r?.rows)?r.rows:[];
  const t=lines(rows,[['المفتاح',x=>x.medal_key||x.key||'—'],['الاسم',x=>x.display_name||x.label||'—'],['الوصف',x=>x.description||'—']]);
  const add=owner()?'<form id="mgm-medal-change" class="mgm-form"><h3>إدارة منح المداليات</h3>'+
  '<label>الإجراء<select name="action"><option value="grant">منح مدالية</option><option value="revoke">سحب مدالية</option><option value="register">تسجيل نوع مدالية جديد</option></select></label>'+
@@ -173,7 +173,7 @@ document.addEventListener('click',e=>{
   const html='<form id="mgm-approval-form" class="mgm-form" data-kind="'+kind+'">'+
    '<h3>مراجعة طلب افتتاح وكالة</h3><p class="mgm-code">'+esc(id)+'</p>'+
    '<label>القرار<select name="decision"><option value="approve_registration">موافقة</option><option value="reject_registration">رفض</option></select></label>'+
-   input('commission','نسبة عمولة معتمدة عند الموافقة','type="number" min="0" max="100" step="0.01" placeholder="أدخل النسبة المتفق عليها"')+
+   '<label>نسبة العمولة عند الموافقة<input name="commission" type="number" min="0" max="100" step="0.01" placeholder="أدخل النسبة المعتمدة فقط"></label>'+
    '<label>تعليل القرار<textarea name="note" minlength="3" maxlength="500" required></textarea></label>'+
    '<input type="hidden" name="id" value="'+esc(id)+'">'+
    '<button class="btn btn-primary">تأكيد القرار الإداري</button></form>';
