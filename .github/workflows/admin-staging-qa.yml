@@ -1,0 +1,36 @@
+name: TotiChat Admin Staging Source QA
+on:
+  push:
+    branches:
+      - feature/totichat-admin-staging-20261011
+    paths:
+      - "admin-dashboard/**"
+      - ".github/workflows/admin-staging-qa.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  static-admin:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: admin-dashboard
+    steps:
+      - name: Checkout isolated branch
+        uses: actions/checkout@v4
+      - name: Use Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Syntax checks (no app build)
+        run: |
+          node --check app.js
+          node --check management.js
+          node --check build.mjs
+          node --check tests/admin-staging.test.mjs
+      - name: Generate static admin site
+        run: npm run build
+      - name: Verify assets and security contracts
+        run: node --test tests/admin-staging.test.mjs
