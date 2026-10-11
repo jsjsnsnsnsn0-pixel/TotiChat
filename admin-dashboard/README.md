@@ -1,38 +1,45 @@
-# TotiChat Admin Dashboard
+# TotiChat Admin Dashboard — Staging preview
 
-An independent, premium, responsive RTL administration website. Source root: `admin-dashboard/` on `develop/phase-2`. Uses **Supabase Staging only**.
+## Location and safety
+- This is the **same GitHub repository** currently connected to the existing Vercel `totichat-admin` project: `jsjsnsnsnsn0-pixel/TotiChat`.
+- All additions are on `feature/totichat-admin-staging-20261011`. Existing `main` and the current production deployment are unchanged.
+- Root for Vercel: `admin-dashboard`. Existing build `npm run build` outputs `dist`, containing only this static admin website.
+- Vercel has independently created a **Preview** from the branch, distinct from Production. The preview may be protected by Vercel Authentication.
+- Backend: **Supabase STAGING** `rziaedugbdwefbefcxjt` only. The source contains a browser-safe publishable key, never a service-role secret.
+- Owner: `xxjjh20@gmail.com`, the existing confirmed identity bound to the primary Owner in Staging. No second Owner account was created.
 
-## Verified Staging Owner
-`xxjjh20@gmail.com` is the existing email-confirmed Owner account, correctly bound in `phase3.system_authority`. We did not create or transfer ownership. Staff cannot promote themselves to Owner. Main partner is a separate explicit designation.
+## Implemented website features
+- Premium RTL responsive design, original falcon assets and accessible navigation.
+- Sign-in: email/password and GitHub PKCE. GitHub sign-in needs the exact deployment URL included in the Staging Auth Redirect URL allowlist.
+- Owner-only financial summaries and real date/status-filtered reports, CSV export with spreadsheet formula escaping.
+- Static WebP-only Banner Studio, compressed to 500 KiB: upload, schedule, edit, publish, archive, order and storage cleanup.
+- Users: server-permission-checked read-only directory.
+- Rooms: server-permission-checked directory and member/room-ban inspection; audited **room-only** ban/unban with reasons and confirmation for Owner/designated main partner. Global user bans remain disabled.
+- Host/recharge agencies and registration requests, explicit commission approval, investigation of exceptional host transfers. No invented salary targets/rates.
+- Financial discrepancy review and immutable host-diamond earning evidence, never payroll/diamond reset.
+- VIP & medal Owner operations; catalog lists now cover gift catalog, gift categories, store catalog, CP types, recharge packages and recharge rewards. Only approved nonfinancial catalog activation flags are reversible here; not price/wage/reward editing.
+- Real customer-support ticket list, threads, replies and statuses; Owner can assign support staff.
+- Real management staff directory, restricted assignments and audit log.
 
-## Implemented source and server RPC connections
-- Email/password and GitHub PKCE login, with database-checked admin and support authorization (GitHub OAuth redirect registration needed for real hosted sign-in).
-- Premium light falcon branded sidebar, responsive navigation, search, accessible dialogs/forms.
-- Actual owner KPI summary and real reports with date/status filters and CSV export; no fabricated balances.
-- Static WebP image banner management with compressed <=512000-byte uploads, draft/publish/archive, schedule, order, approved internal destinations, and Storage API cleanup.
-- Read-only user and room directory with server permissions and bounded pages.
-- Host/recharge agencies with live lists, new-agency request decisions, explicitly entered commission, agency edits, and investigated exception handling for transfers.
-- Host diamond accrual review and financial mismatch audit; no salary settlement or automated reset.
-- Owner-only VIP grant/revoke and medal creation/grant/revoke via server audited procedures.
-- Real customer support inbox, reply and status changes; Owner can appoint or revoke support workers.
-- Real staff roster and read-only security audit; Owner-only staff role assignment, partner designation requires explicit action.
-- Real gift catalog listing. Global catalog mutations need safe field-specific editor and remain disabled.
+## Test status
+- GitHub Actions `TotiChat Admin Staging Source QA` checks JavaScript syntax, the isolated static build and source/security contracts.
+- The repository also has `TotiChat admin static preview QA`. Wait for the **latest** checks to pass before relying on a new preview.
+- `READY` at Vercel confirms deployed static files, not that privileged account operations passed hands-on browser E2E.
 
-## Security
-- Browser holds only a publishable Supabase key; NO service role; all admin mutations are verified again by database code.
-- Source includes a restrictive Content Security Policy, noindex headers and clickjacking prevention.
-- Administrative request responses are discarded after authenticated account changes.
-- The existing consumer app, production database and `main` branch are not modified.
-- No real transactions, user records, VIP or salaries were invented.
+## What is still required before replacing the official site
+1. In Vercel, open the latest **Preview** deployment for this branch (not production).
+2. Authenticate through Vercel Preview protection if prompted.
+3. Verify Owner email/password login with the existing verified account.
+4. Add the exact Preview redirect to **Supabase Staging** Auth allowlist before using GitHub OAuth.
+5. Test a staged WebP image and a dedicated test account for a reversible privileged operation; do not use real clients for test side effects.
+6. Verify the UX on phone and desktop, then obtain the Owner's explicit approval before switching the site's production deployment.
 
-## Scope still needing engineering and approval
-- Admin user bans/room enforcement writes, full safe product catalog editing, full dashboards for agents/host payroll, XP and business rules.
-- Real authorized account E2E, real banner image upload, cross-device tests, verified security reviews and auth settings.
-- Vercel is currently NOT accessible: existing project `totichat-admin` returned HTTP 403 for team scope, and cannot be published by this session.
-- Once Vercel access is restored, use Root Directory `admin-dashboard`, Other/static, no build command; verify project domain, then allowlist that exact HTTPS URL in Supabase Auth.
-- Staging security advisor still warns that leaked-password protection is disabled.
+## Known scope gaps
+- Global account ban / global room shutdown and broader moderation policy need deliberate design and authorization.
+- XP/levels, salary & target computations, treasury settlements and cash agent payouts are not signed off.
+- Source QA is not a replacement for two-account integration, accessibility audit and production security checks.
+- Do not edit `main`, change production Supabase, or promote Vercel Preview without approval.
 
-See `DEPLOYMENT_HANDOFF.md` for the exact official-site checklist and Vercel permission blocker.
-
-## Local source preview
-From repository root run a local static server such as `python3 -m http.server 8080` and visit `http://localhost:8080/admin-dashboard/`. Authentication requires an authorized Staging account and valid Auth redirect where applicable.
+## Local build
+`cd admin-dashboard && npm run build`
+This copies static dashboard assets into `dist`; no Android or consumer app build is involved.
